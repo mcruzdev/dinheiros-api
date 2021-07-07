@@ -1,11 +1,10 @@
 package com.github.mcruzdev.dinheirosapi;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import org.modelmapper.ModelMapper;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 
-import javax.swing.text.html.Option;
 import javax.validation.Valid;
 import javax.validation.constraints.NotBlank;
 import java.net.URI;
@@ -17,16 +16,32 @@ import java.util.stream.Collectors;
 @RequestMapping("/users")
 public class UserController {
 
-    @Autowired
-    private UserRepository userRepository;
+    private final UserRepository userRepository;
+    private final ModelMapper modelMapper;
 
-    @PostMapping
+    public UserController(final UserRepository userRepository,
+                          final ModelMapper modelMapper) {
+
+        this.userRepository = userRepository;
+        this.modelMapper = modelMapper;
+    }
+
+    @PostMapping("/register")
     @Transactional
     public ResponseEntity<Void> create(@Valid @RequestBody NewUserForm form) {
-
         User newUser = form.toUser();
         userRepository.save(newUser);
         return ResponseEntity.created(URI.create(String.format("/users/%s", newUser.getId()))).build();
+    }
+
+    @PostMapping("/login")
+    public ResponseEntity<UserResponse> login(@Valid @RequestBody LoginForm form) {
+        Optional<User> optionalUser = userRepository.findByEmail(form.getEmail());
+        if (!optionalUser.isPresent()) {
+            return ResponseEntity.badRequest().build();
+        }
+        UserResponse userResponse = this.modelMapper.map(optionalUser.get(), UserResponse.class);
+        return ResponseEntity.ok(userResponse);
     }
 
     @GetMapping
